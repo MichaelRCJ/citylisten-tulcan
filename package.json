@@ -4,7 +4,7 @@
   "description": "CityListen Tulcán - Plataforma de Reporte Ciudadano",
   "main": "index.jsx",
   "scripts": {
-    "start": "vite preview --host",
+    "start": "npx serve -s . -l 10000",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --host"

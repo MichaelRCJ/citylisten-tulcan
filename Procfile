@@ -1,1 +1,1 @@
-web: python -m http.server 10000
+web: npm run start
