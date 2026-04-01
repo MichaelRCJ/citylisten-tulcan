@@ -5,17 +5,22 @@ class CityListenApp {
     constructor() {
         this.currentSection = 'dashboard';
         this.isListening = false;
-        this.reportData = [];
-        this.cityData = this.initializeCityData();
+        this.selectedZone = null;
         this.accessibilitySettings = {
             highContrast: false,
             largeText: false,
-            screenReader: true,
+            screenReader: false,
             voiceCommands: false,
             reduceMotion: false
         };
-        this.voiceRecognition = null;
         
+        // Initialize city data
+        this.cityData = this.initializeCityData();
+        
+        // Initialize enhanced accessibility
+        this.setupEnhancedAccessibility();
+        
+        // Initialize app components
         this.init();
     }
 
@@ -1266,46 +1271,92 @@ class CityListenApp {
         }, 1000);
     }
 
-    // ===== VOICE COMMANDS =====
+    // ===== ENHANCED VOICE COMMANDS =====
     startVoiceCommands() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            this.announceToScreenReader('Reconocimiento de voz no soportado en este navegador');
+            this.announceToScreenReader('Reconocimiento de voz no soportado en este navegador. Prueba con Chrome o Edge.');
+            this.showVoiceIndicator('Voz no disponible', 'error');
             return;
         }
         
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.voiceRecognition = new SpeechRecognition();
         
+        // Enhanced configuration
         this.voiceRecognition.lang = 'es-ES';
         this.voiceRecognition.continuous = true;
         this.voiceRecognition.interimResults = false;
+        this.voiceRecognition.maxAlternatives = 3;
         
+        // Enhanced result processing
         this.voiceRecognition.onresult = (event) => {
             const last = event.results.length - 1;
-            const command = event.results[last][0].transcript.toLowerCase();
-            this.processVoiceCommand(command);
+            const command = event.results[last][0].transcript.toLowerCase().trim();
+            const confidence = event.results[last][0].confidence;
+            
+            console.log('Voice command:', command, 'Confidence:', confidence);
+            
+            // Only process if confidence is good enough
+            if (confidence > 0.7) {
+                this.processVoiceCommand(command);
+                this.showVoiceIndicator(`"${command}"`, 'success');
+            } else {
+                this.showVoiceIndicator('No entendí, repite por favor', 'warning');
+            }
         };
         
+        // Enhanced error handling
         this.voiceRecognition.onerror = (event) => {
             console.error('Voice recognition error:', event.error);
-            this.showVoiceIndicator('Error en reconocimiento de voz', 'error');
+            let errorMessage = 'Error en reconocimiento de voz';
+            
+            switch (event.error) {
+                case 'no-speech':
+                    errorMessage = 'No se detectó voz';
+                    break;
+                case 'audio-capture':
+                    errorMessage = 'No se pudo acceder al micrófono';
+                    break;
+                case 'not-allowed':
+                    errorMessage = 'Permiso de micrófono denegado';
+                    break;
+                case 'network':
+                    errorMessage = 'Error de conexión';
+                    break;
+            }
+            
+            this.showVoiceIndicator(errorMessage, 'error');
+            this.announceToScreenReader(errorMessage);
         };
         
+        // Enhanced restart logic
         this.voiceRecognition.onend = () => {
             if (this.accessibilitySettings.voiceCommands) {
-                // Restart recognition if still enabled
+                this.showVoiceIndicator('Escuchando...', 'info');
                 setTimeout(() => {
-                    this.voiceRecognition.start();
+                    if (this.voiceRecognition && this.accessibilitySettings.voiceCommands) {
+                        try {
+                            this.voiceRecognition.start();
+                        } catch (error) {
+                            console.error('Error restarting voice recognition:', error);
+                        }
+                    }
                 }, 1000);
             }
         };
         
+        // Start recognition
         try {
             this.voiceRecognition.start();
-            this.showVoiceIndicator('Comandos de voz activados', 'success');
-            this.announceToScreenReader('Comandos de voz activados. Di "ayuda" para escuchar los comandos disponibles.');
+            this.showVoiceIndicator('🎤 Escuchando comandos...', 'success');
+            this.announceToScreenReader('Comandos de voz activados. Di "ayuda" o "comandos" para escuchar todas las opciones disponibles.');
+            
+            // Show persistent voice indicator
+            this.createPersistentVoiceIndicator();
+            
         } catch (error) {
             console.error('Error starting voice recognition:', error);
+            this.showVoiceIndicator('Error al iniciar voz', 'error');
         }
     }
 
@@ -1315,66 +1366,310 @@ class CityListenApp {
             this.voiceRecognition = null;
             this.showVoiceIndicator('Comandos de voz desactivados', 'info');
             this.announceToScreenReader('Comandos de voz desactivados');
+            
+            // Remove persistent indicator
+            const indicator = document.querySelector('.persistent-voice-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
         }
     }
 
+    createPersistentVoiceIndicator() {
+        // Remove existing indicator
+        const existing = document.querySelector('.persistent-voice-indicator');
+        if (existing) {
+            existing.remove();
+        }
+        
+        // Create persistent indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'persistent-voice-indicator';
+        indicator.innerHTML = `
+            <div class="voice-status">
+                <i class="fas fa-microphone voice-icon"></i>
+                <span class="voice-text">Escuchando...</span>
+            </div>
+        `;
+        
+        document.body.appendChild(indicator);
+    }
+
     processVoiceCommand(command) {
-        console.log('Voice command received:', command);
+        console.log('Processing command:', command);
         
-        // Navigation commands
-        if (command.includes('inicio') || command.includes('dashboard')) {
-            this.navigateToSection('dashboard');
-            this.announceToScreenReader('Navegando al inicio');
-        } else if (command.includes('mapa')) {
-            this.navigateToSection('map');
-            this.announceToScreenReader('Navegando al mapa');
-        } else if (command.includes('reportar') || command.includes('reporte')) {
-            this.openReportSection();
-            this.announceToScreenReader('Abriendo formulario de reporte');
-        } else if (command.includes('estadísticas')) {
-            this.navigateToSection('statistics');
-            this.announceToScreenReader('Navegando a estadísticas');
-        } else if (command.includes('perfil')) {
-            this.navigateToSection('profile');
-            this.announceToScreenReader('Navegando al perfil');
-        }
+        // Enhanced navigation commands with more variations
+        const navigationCommands = {
+            // Dashboard/Home
+            'inicio|dashboard|principal|home|empezar': () => {
+                this.navigateToSection('dashboard');
+                this.announceToScreenReader('Navegando al inicio');
+            },
+            // Map
+            'mapa|ver mapa|mapa interactivo': () => {
+                this.navigateToSection('map');
+                this.announceToScreenReader('Navegando al mapa interactivo de Tulcán');
+            },
+            // Report
+            'reportar|reporte|nuevo reporte|hacer reporte|reportar problema': () => {
+                this.openReportSection();
+                this.announceToScreenReader('Abriendo formulario de reporte ciudadano');
+            },
+            // Statistics
+            'estadísticas|estadisticas|ver estadísticas|datos|análisis': () => {
+                this.navigateToSection('statistics');
+                this.announceToScreenReader('Navegando a estadísticas de bienestar');
+            },
+            // Profile
+            'perfil|mi perfil|cuenta|ajustes': () => {
+                this.navigateToSection('profile');
+                this.announceToScreenReader('Navegando al perfil de usuario');
+            }
+        };
         
-        // Action commands
-        else if (command.includes('accesibilidad')) {
-            this.openAccessibilityPanel();
-            this.announceToScreenReader('Abriendo panel de accesibilidad');
-        } else if (command.includes('notificaciones')) {
-            this.showNotifications();
-            this.announceToScreenReader('Mostrando notificaciones');
-        } else if (command.includes('ayuda')) {
-            this.announceVoiceCommandsHelp();
-        }
+        // Enhanced action commands
+        const actionCommands = {
+            // Accessibility
+            'accesibilidad|opciones de accesibilidad|accesible': () => {
+                this.openAccessibilityPanel();
+                this.announceToScreenReader('Abriendo panel de accesibilidad');
+            },
+            // Notifications
+            'notificaciones|ver notificaciones|alertas': () => {
+                this.showNotifications();
+                this.announceToScreenReader('Mostrando notificaciones recientes');
+            },
+            // Help
+            'ayuda|comandos|ayuda comandos|qué puedo decir': () => {
+                this.announceVoiceCommandsHelp();
+            },
+            // Voice control
+            'detener voz|parar voz|silencio|dejar de escuchar': () => {
+                this.stopVoiceCommands();
+                this.announceToScreenReader('Comandos de voz desactivados');
+            },
+            // Restart voice
+            'activar voz|iniciar voz|escuchar de nuevo': () => {
+                this.startVoiceCommands();
+                this.announceToScreenReader('Comandos de voz reactivados');
+            }
+        };
         
-        // Form commands
-        else if (command.includes('enviar') && this.currentSection === 'report') {
-            const form = document.getElementById('reportForm');
-            if (form) {
-                form.dispatchEvent(new Event('submit'));
+        // Enhanced form commands
+        const formCommands = {
+            'enviar|submit|enviar formulario|finalizar': () => {
+                if (this.currentSection === 'report') {
+                    const form = document.getElementById('reportForm');
+                    if (form) {
+                        form.dispatchEvent(new Event('submit'));
+                        this.announceToScreenReader('Enviando formulario de reporte');
+                    }
+                }
+            },
+            'limpiar|borrar|resetear|vaciar': () => {
+                if (this.currentSection === 'report') {
+                    const form = document.getElementById('reportForm');
+                    if (form) {
+                        form.reset();
+                        this.announceToScreenReader('Formulario limpiado');
+                    }
+                }
+            },
+            'cancelar|salir|cerrar': () => {
+                this.closeAllModals();
+                this.announceToScreenReader('Operación cancelada');
+            }
+        };
+        
+        // Enhanced chart commands
+        const chartCommands = {
+            'hoy|día|ver hoy|período día': () => {
+                if (this.currentSection === 'statistics') {
+                    this.updateChartPeriod('day');
+                    this.announceToScreenReader('Mostrando estadísticas de hoy');
+                }
+            },
+            'semana|esta semana|ver semana': () => {
+                if (this.currentSection === 'statistics') {
+                    this.updateChartPeriod('week');
+                    this.announceToScreenReader('Mostrando estadísticas de la semana');
+                }
+            },
+            'mes|este mes|ver mes': () => {
+                if (this.currentSection === 'statistics') {
+                    this.updateChartPeriod('month');
+                    this.announceToScreenReader('Mostrando estadísticas del mes');
+                }
+            }
+        };
+        
+        // Enhanced zone commands for map
+        const zoneCommands = {
+            'zona norte|norte|ver zona norte': () => {
+                if (this.currentSection === 'map') {
+                    this.selectZone('norte');
+                    this.announceToScreenReader('Seleccionando zona norte de Tulcán');
+                }
+            },
+            'zona sur|sur|ver zona sur': () => {
+                if (this.currentSection === 'map') {
+                    this.selectZone('sur');
+                    this.announceToScreenReader('Seleccionando zona sur de Tulcán');
+                }
+            },
+            'zona este|este|ver zona este': () => {
+                if (this.currentSection === 'map') {
+                    this.selectZone('este');
+                    this.announceToScreenReader('Seleccionando zona este de Tulcán');
+                }
+            },
+            'zona oeste|oeste|ver zona oeste': () => {
+                if (this.currentSection === 'map') {
+                    this.selectZone('oeste');
+                    this.announceToScreenReader('Seleccionando zona oeste de Tulcán');
+                }
+            },
+            'centro histórico|centro|ver centro': () => {
+                if (this.currentSection === 'map') {
+                    this.selectZone('centro');
+                    this.announceToScreenReader('Seleccionando centro histórico de Tulcán');
+                }
+            }
+        };
+        
+        // Enhanced accessibility commands
+        const accessibilityCommands = {
+            'alto contraste|contraste alto|modo contraste': () => {
+                this.toggleAccessibilityFeature('highContrast', !this.accessibilitySettings.highContrast);
+            },
+            'texto grande|letra grande|aumentar texto': () => {
+                this.toggleAccessibilityFeature('largeText', !this.accessibilitySettings.largeText);
+            },
+            'lector de pantalla|modo lector|screen reader': () => {
+                this.toggleAccessibilityFeature('screenReader', !this.accessibilitySettings.screenReader);
+            },
+            'reducir movimiento|menos animación|sin animación': () => {
+                this.toggleAccessibilityFeature('reduceMotion', !this.accessibilitySettings.reduceMotion);
+            }
+        };
+        
+        // Check all command categories
+        let commandExecuted = false;
+        
+        // Check navigation commands
+        for (const [patterns, action] of Object.entries(navigationCommands)) {
+            if (new RegExp(patterns).test(command)) {
+                action();
+                commandExecuted = true;
+                break;
             }
         }
         
-        else {
-            this.showVoiceIndicator(`Comando no reconocido: ${command}`, 'warning');
+        // Check action commands
+        if (!commandExecuted) {
+            for (const [patterns, action] of Object.entries(actionCommands)) {
+                if (new RegExp(patterns).test(command)) {
+                    action();
+                    commandExecuted = true;
+                    break;
+                }
+            }
+        }
+        
+        // Check form commands
+        if (!commandExecuted) {
+            for (const [patterns, action] of Object.entries(formCommands)) {
+                if (new RegExp(patterns).test(command)) {
+                    action();
+                    commandExecuted = true;
+                    break;
+                }
+            }
+        }
+        
+        // Check chart commands
+        if (!commandExecuted) {
+            for (const [patterns, action] of Object.entries(chartCommands)) {
+                if (new RegExp(patterns).test(command)) {
+                    action();
+                    commandExecuted = true;
+                    break;
+                }
+            }
+        }
+        
+        // Check zone commands
+        if (!commandExecuted) {
+            for (const [patterns, action] of Object.entries(zoneCommands)) {
+                if (new RegExp(patterns).test(command)) {
+                    action();
+                    commandExecuted = true;
+                    break;
+                }
+            }
+        }
+        
+        // Check accessibility commands
+        if (!commandExecuted) {
+            for (const [patterns, action] of Object.entries(accessibilityCommands)) {
+                if (new RegExp(patterns).test(command)) {
+                    action();
+                    commandExecuted = true;
+                    break;
+                }
+            }
+        }
+        
+        // If no command was recognized
+        if (!commandExecuted) {
+            this.showVoiceIndicator(`Comando no reconocido: "${command}"`, 'warning');
+            this.announceToScreenReader(`Comando no reconocido. Di "ayuda" para escuchar los comandos disponibles.`);
+        }
+    }
+
+    updateChartPeriod(period) {
+        // Update chart period
+        const chartButtons = document.querySelectorAll('.chart-btn');
+        chartButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.period === period) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Trigger chart update
+        this.updateAllCharts(period);
+    }
+
+    selectZone(zoneId) {
+        // Select zone on map
+        const zoneElement = document.querySelector(`[data-zone="${zoneId}"]`);
+        if (zoneElement) {
+            zoneElement.click();
         }
     }
 
     announceVoiceCommandsHelp() {
-        const helpText = 'Comandos de voz disponibles: ' +
-            'Di "inicio" para ir al inicio, ' +
-            '"mapa" para ir al mapa, ' +
-            '"reportar" para hacer un reporte, ' +
-            '"estadísticas" para ver estadísticas, ' +
-            '"perfil" para ir a tu perfil, ' +
-            '"accesibilidad" para abrir opciones de accesibilidad, ' +
-            '"notificaciones" para ver notificaciones, ' +
-            'o "enviar" cuando estés en el formulario de reporte.';
+        const helpCategories = {
+            navegación: 'Di "inicio", "mapa", "reportar", "estadísticas" o "perfil" para navegar.',
+            acciones: 'Di "accesibilidad" para opciones, "notificaciones" para alertas, o "ayuda" para esta ayuda.',
+            voz: 'Di "detener voz" para desactivar, o "activar voz" para reactivar comandos.',
+            formulario: 'En reportes: di "enviar" para enviar, "limpiar" para borrar, o "cancelar" para salir.',
+            estadísticas: 'Di "hoy", "semana" o "mes" para cambiar el período de las gráficas.',
+            mapa: 'Di "zona norte", "zona sur", "zona este", "zona oeste" o "centro histórico" para seleccionar zonas.',
+            accesibilidad: 'Di "alto contraste", "texto grande", "lector de pantalla" o "reducir movimiento".'
+        };
+        
+        let helpText = 'Comandos de voz disponibles: ';
+        
+        for (const [category, commands] of Object.entries(helpCategories)) {
+            helpText += `En ${category}: ${commands} `;
+        }
+        
+        helpText += 'También puedes decir "detener voz" o "activar voz" para controlar los comandos de voz.';
         
         this.announceToScreenReader(helpText);
+        this.showVoiceIndicator('Ayuda de comandos activada', 'info');
     }
 
     showVoiceIndicator(message, type = 'info') {
@@ -1384,25 +1679,27 @@ class CityListenApp {
             existing.remove();
         }
         
-        // Create new indicator
+        // Create new indicator with enhanced styling
         const indicator = document.createElement('div');
-        indicator.className = 'voice-indicator active';
-        if (type === 'error') {
-            indicator.style.background = 'var(--danger-red)';
-        } else if (type === 'warning') {
-            indicator.style.background = 'var(--warning-yellow)';
-        } else if (type === 'success') {
-            indicator.style.background = 'var(--success-green)';
-        }
+        indicator.className = `voice-indicator active ${type}`;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-triangle',
+            warning: 'fa-exclamation-circle',
+            info: 'fa-info-circle'
+        };
         
         indicator.innerHTML = `
-            <i class="fas fa-microphone"></i>
-            <span>${message}</span>
+            <div class="voice-content">
+                <i class="fas ${icons[type]} voice-icon"></i>
+                <span class="voice-message">${message}</span>
+            </div>
         `;
         
         document.body.appendChild(indicator);
         
-        // Auto-remove after 3 seconds
+        // Auto-remove after delay
         setTimeout(() => {
             if (indicator.parentNode) {
                 indicator.remove();
@@ -1410,7 +1707,482 @@ class CityListenApp {
         }, 3000);
     }
 
-    // ===== DATA MANAGEMENT =====
+    // ===== ENHANCED ACCESSIBILITY METHODS =====
+    setupEnhancedAccessibility() {
+        // Enhanced keyboard navigation
+        this.setupKeyboardNavigation();
+        
+        // Enhanced screen reader support
+        this.setupScreenReaderSupport();
+        
+        // Enhanced focus management
+        this.setupFocusManagement();
+        
+        // Enhanced ARIA live regions
+        this.setupLiveRegions();
+        
+        // Enhanced skip links
+        this.setupSkipLinks();
+        
+        // Enhanced keyboard hints
+        this.setupKeyboardHints();
+    }
+
+    setupKeyboardNavigation() {
+        // Enhanced keyboard shortcuts with visual feedback
+        document.addEventListener('keydown', (e) => {
+            // Show keyboard hint when Alt is pressed
+            if (e.altKey) {
+                this.showKeyboardHint();
+            }
+            
+            // Alt + A: Accessibility Panel
+            if (e.altKey && e.key === 'a') {
+                e.preventDefault();
+                this.openAccessibilityPanel();
+                this.announceToScreenReader('Panel de accesibilidad abierto');
+            }
+            
+            // Alt + R: Report
+            if (e.altKey && e.key === 'r') {
+                e.preventDefault();
+                this.openReportSection();
+                this.announceToScreenReader('Formulario de reporte abierto');
+            }
+            
+            // Alt + M: Map
+            if (e.altKey && e.key === 'm') {
+                e.preventDefault();
+                this.navigateToSection('map');
+                this.announceToScreenReader('Navegando al mapa');
+            }
+            
+            // Alt + S: Statistics
+            if (e.altKey && e.key === 's') {
+                e.preventDefault();
+                this.navigateToSection('statistics');
+                this.announceToScreenReader('Navegando a estadísticas');
+            }
+            
+            // Alt + H: Help
+            if (e.altKey && e.key === 'h') {
+                e.preventDefault();
+                this.showAccessibilityHelp();
+                this.announceToScreenReader('Ayuda de accesibilidad abierta');
+            }
+            
+            // Alt + V: Voice Commands
+            if (e.altKey && e.key === 'v') {
+                e.preventDefault();
+                this.toggleVoiceCommands();
+                this.announceToScreenReader('Comandos de voz toggled');
+            }
+            
+            // Tab navigation enhancement
+            if (e.key === 'Tab') {
+                this.enhanceTabNavigation(e);
+            }
+            
+            // Escape: Close modals
+            if (e.key === 'Escape') {
+                this.closeAllModals();
+                this.announceToScreenReader('Modales cerrados');
+            }
+            
+            // Arrow keys for zone navigation
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || 
+                e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                this.handleArrowKeyNavigation(e);
+            }
+        });
+    }
+
+    setupScreenReaderSupport() {
+        // Add ARIA labels dynamically
+        this.addDynamicARIALabels();
+        
+        // Setup live regions for announcements
+        this.createLiveRegions();
+        
+        // Enhance form accessibility
+        this.enhanceFormAccessibility();
+        
+        // Add landmarks for screen readers
+        this.addLandmarks();
+    }
+
+    setupFocusManagement() {
+        // Track focus for better management
+        let focusedElement = null;
+        
+        document.addEventListener('focus', (e) => {
+            focusedElement = e.target;
+            this.announceFocusChange(focusedElement);
+        }, true);
+        
+        document.addEventListener('blur', (e) => {
+            focusedElement = null;
+        }, true);
+        
+        // Focus trap for modals
+        this.setupFocusTrap();
+    }
+
+    setupLiveRegions() {
+        // Create live regions for dynamic content
+        const liveRegion = document.createElement('div');
+        liveRegion.setAttribute('aria-live', 'polite');
+        liveRegion.setAttribute('aria-atomic', 'true');
+        liveRegion.className = 'sr-only live-region';
+        liveRegion.id = 'live-region';
+        document.body.appendChild(liveRegion);
+        
+        // Create status region for important updates
+        const statusRegion = document.createElement('div');
+        statusRegion.setAttribute('aria-live', 'assertive');
+        statusRegion.setAttribute('aria-atomic', 'true');
+        statusRegion.className = 'sr-only status-region';
+        statusRegion.id = 'status-region';
+        document.body.appendChild(statusRegion);
+    }
+
+    setupSkipLinks() {
+        // Create skip links for keyboard navigation
+        const skipLinks = document.createElement('div');
+        skipLinks.className = 'skip-links';
+        skipLinks.innerHTML = `
+            <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+            <a href="#navigation" class="skip-link">Saltar a navegación</a>
+            <a href="#map-section" class="skip-link">Saltar al mapa</a>
+            <a href="#statistics-section" class="skip-link">Saltar a estadísticas</a>
+        `;
+        document.body.insertBefore(skipLinks, document.body.firstChild);
+    }
+
+    setupKeyboardHints() {
+        // Create keyboard navigation hints
+        const hint = document.createElement('div');
+        hint.className = 'keyboard-nav-hint';
+        hint.innerHTML = 'Usa Alt + teclas para navegación rápida. Alt + A: Accesibilidad, Alt + H: Ayuda';
+        document.body.appendChild(hint);
+    }
+
+    showKeyboardHint() {
+        const hint = document.querySelector('.keyboard-nav-hint');
+        if (hint) {
+            hint.classList.add('show');
+            setTimeout(() => {
+                hint.classList.remove('show');
+            }, 3000);
+        }
+    }
+
+    enhanceTabNavigation(e) {
+        // Enhanced tab navigation with visual indicators
+        const focusableElements = document.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        
+        const currentIndex = Array.from(focusableElements).indexOf(document.activeElement);
+        
+        if (e.shiftKey && currentIndex > 0) {
+            // Shift + Tab: Go backwards
+            e.preventDefault();
+            focusableElements[currentIndex - 1].focus();
+        } else if (!e.shiftKey && currentIndex < focusableElements.length - 1) {
+            // Tab: Go forwards
+            // Let default behavior handle this
+        }
+    }
+
+    handleArrowKeyNavigation(e) {
+        // Arrow key navigation for map zones and charts
+        if (this.currentSection === 'map') {
+            this.navigateMapZones(e.key);
+        } else if (this.currentSection === 'statistics') {
+            this.navigateCharts(e.key);
+        }
+    }
+
+    navigateMapZones(arrowKey) {
+        const zones = ['centro', 'norte', 'sur', 'este', 'oeste'];
+        const currentZone = document.querySelector('.zone-path:focus');
+        
+        if (currentZone) {
+            const currentZoneId = currentZone.getAttribute('data-zone');
+            const currentIndex = zones.indexOf(currentZoneId);
+            
+            let nextIndex;
+            switch (arrowKey) {
+                case 'ArrowRight':
+                    nextIndex = (currentIndex + 1) % zones.length;
+                    break;
+                case 'ArrowLeft':
+                    nextIndex = (currentIndex - 1 + zones.length) % zones.length;
+                    break;
+                case 'ArrowDown':
+                    nextIndex = (currentIndex + 2) % zones.length;
+                    break;
+                case 'ArrowUp':
+                    nextIndex = (currentIndex - 2 + zones.length) % zones.length;
+                    break;
+            }
+            
+            const nextZone = document.querySelector(`[data-zone="${zones[nextIndex]}"]`);
+            if (nextZone) {
+                nextZone.focus();
+                this.announceToScreenReader(`Zona ${zones[nextIndex]} seleccionada`);
+            }
+        }
+    }
+
+    navigateCharts(arrowKey) {
+        const charts = ['barChart', 'pieChart', 'lineChart', 'areaChart'];
+        const currentChart = document.querySelector('.chart-box:focus-within');
+        
+        if (currentChart) {
+            const currentChartId = currentChart.querySelector('canvas').id;
+            const currentIndex = charts.indexOf(currentChartId);
+            
+            let nextIndex;
+            switch (arrowKey) {
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    nextIndex = (currentIndex + 1) % charts.length;
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    nextIndex = (currentIndex - 1 + charts.length) % charts.length;
+                    break;
+            }
+            
+            const nextChart = document.getElementById(charts[nextIndex]);
+            if (nextChart) {
+                nextChart.parentElement.focus();
+                this.announceToScreenReader(`Gráfico ${charts[nextIndex]} seleccionado`);
+            }
+        }
+    }
+
+    addDynamicARIALabels() {
+        // Add ARIA labels to dynamic elements
+        const charts = document.querySelectorAll('canvas');
+        charts.forEach((chart, index) => {
+            chart.setAttribute('role', 'img');
+            chart.setAttribute('aria-label', `Gráfico ${index + 1} de estadísticas de bienestar`);
+        });
+        
+        // Add ARIA labels to map zones
+        const zones = document.querySelectorAll('.zone-path');
+        zones.forEach(zone => {
+            const zoneId = zone.getAttribute('data-zone');
+            const zoneData = this.cityData.zones[zoneId];
+            if (zoneData) {
+                zone.setAttribute('aria-label', 
+                    `Zona ${zoneId}: ${zoneData.description}. ` +
+                    `Estado: ${zoneData.status}. ` +
+                    `Reportes: ${zoneData.reports}. ` +
+                    `Bienestar: ${zoneData.wellBeing}%`
+                );
+            }
+        });
+    }
+
+    createLiveRegions() {
+        // Already created in setupLiveRegions()
+    }
+
+    enhanceFormAccessibility() {
+        // Enhance form elements with better accessibility
+        const formControls = document.querySelectorAll('input, select, textarea');
+        formControls.forEach(control => {
+            // Add required indicators
+            if (control.required) {
+                control.setAttribute('aria-required', 'true');
+                const label = document.querySelector(`label[for="${control.id}"]`);
+                if (label) {
+                    label.innerHTML += ' <span class="required" aria-label="requerido">*</span>';
+                }
+            }
+            
+            // Add validation messages
+            control.addEventListener('invalid', (e) => {
+                this.announceToScreenReader(`Error en ${control.id}: ${e.target.validationMessage}`);
+            });
+            
+            // Add character counter for textareas
+            if (control.tagName === 'TEXTAREA') {
+                control.addEventListener('input', (e) => this.updateCharacterCounter(e));
+            }
+        });
+    }
+
+    addLandmarks() {
+        // Add ARIA landmarks for better navigation
+        const main = document.querySelector('main') || document.querySelector('.main-content');
+        if (main) {
+            main.setAttribute('role', 'main');
+            main.id = 'main-content';
+        }
+        
+        const nav = document.querySelector('nav') || document.querySelector('.main-nav');
+        if (nav) {
+            nav.setAttribute('role', 'navigation');
+            nav.id = 'navigation';
+        }
+        
+        const header = document.querySelector('header');
+        if (header) {
+            header.setAttribute('role', 'banner');
+        }
+        
+        const footer = document.querySelector('footer');
+        if (footer) {
+            footer.setAttribute('role', 'contentinfo');
+        }
+    }
+
+    setupFocusTrap() {
+        // Focus trap for modals and panels
+        const modals = document.querySelectorAll('.modal, .accessibility-panel');
+        modals.forEach(modal => {
+            modal.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    const focusableElements = modal.querySelectorAll(
+                        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                    );
+                    
+                    const firstElement = focusableElements[0];
+                    const lastElement = focusableElements[focusableElements.length - 1];
+                    
+                    if (e.shiftKey) {
+                        if (document.activeElement === firstElement) {
+                            e.preventDefault();
+                            lastElement.focus();
+                        }
+                    } else {
+                        if (document.activeElement === lastElement) {
+                            e.preventDefault();
+                            firstElement.focus();
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    announceFocusChange(element) {
+        // Announce focus changes for screen readers
+        const announcement = element.getAttribute('aria-label') || 
+                           element.textContent || 
+                           element.placeholder || 
+                           element.title ||
+                           'Elemento enfocado';
+        
+        this.announceToScreenReader(announcement);
+    }
+
+    showAccessibilityHelp() {
+        // Create comprehensive accessibility help modal
+        const helpModal = document.createElement('div');
+        helpModal.className = 'voice-help-modal';
+        helpModal.setAttribute('role', 'dialog');
+        helpModal.setAttribute('aria-modal', 'true');
+        helpModal.setAttribute('aria-labelledby', 'help-title');
+        
+        helpModal.innerHTML = `
+            <h3 id="help-title">Ayuda de Accesibilidad</h3>
+            <div class="voice-commands-list">
+                <div class="voice-command-category">
+                    <h4>Navegación por Teclado</h4>
+                    <p>
+                        <strong>Alt + A:</strong> Panel de accesibilidad<br>
+                        <strong>Alt + R:</strong> Formulario de reporte<br>
+                        <strong>Alt + M:</strong> Mapa interactivo<br>
+                        <strong>Alt + S:</strong> Estadísticas<br>
+                        <strong>Alt + H:</strong> Ayuda<br>
+                        <strong>Alt + V:</strong> Comandos de voz<br>
+                        <strong>Escape:</strong> Cerrar modales<br>
+                        <strong>Tab/Shift+Tab:</strong> Navegación<br>
+                        <strong>Flechas:</strong> Navegar zonas y gráficos
+                    </p>
+                </div>
+                <div class="voice-command-category">
+                    <h4>Comandos de Voz</h4>
+                    <p>
+                        <strong>Navegación:</strong> "inicio", "mapa", "reportar", "estadísticas"<br>
+                        <strong>Acciones:</strong> "accesibilidad", "ayuda", "detener voz"<br>
+                        <strong>Formulario:</strong> "enviar", "limpiar", "cancelar"<br>
+                        <strong>Gráficos:</strong> "hoy", "semana", "mes"<br>
+                        <strong>Mapa:</strong> "zona norte", "zona sur", "centro histórico"
+                    </p>
+                </div>
+                <div class="voice-command-category">
+                    <h4>Opciones de Accesibilidad</h4>
+                    <p>
+                        <strong>Alto Contraste:</strong> Mejora la visibilidad<br>
+                        <strong>Texto Grande:</strong> Aumenta el tamaño de fuente<br>
+                        <strong>Lector de Pantalla:</strong> Modo optimizado para lectores<br>
+                        <strong>Reducir Movimiento:</strong> Minimiza animaciones<br>
+                        <strong>Comandos de Voz:</strong> Control por voz
+                    </p>
+                </div>
+            </div>
+            <button class="close-help-btn" onclick="this.parentElement.remove()">
+                Cerrar Ayuda
+            </button>
+        `;
+        
+        document.body.appendChild(helpModal);
+        
+        // Focus management
+        const closeBtn = helpModal.querySelector('.close-help-btn');
+        closeBtn.focus();
+        
+        // Announce to screen reader
+        this.announceToScreenReader('Ayuda de accesibilidad abierta');
+    }
+
+    toggleVoiceCommands() {
+        // Toggle voice commands with better feedback
+        if (this.accessibilitySettings.voiceCommands) {
+            this.stopVoiceCommands();
+        } else {
+            this.startVoiceCommands();
+        }
+        
+        // Update toggle state
+        const toggle = document.getElementById('voiceCommands');
+        if (toggle) {
+            toggle.checked = this.accessibilitySettings.voiceCommands;
+        }
+    }
+
+    // Enhanced announcements with different priority levels
+    announceToScreenReader(message, priority = 'polite') {
+        const regionId = priority === 'assertive' ? 'status-region' : 'live-region';
+        const region = document.getElementById(regionId);
+        
+        if (region) {
+            region.textContent = message;
+            
+            // Clear after announcement
+            setTimeout(() => {
+                region.textContent = '';
+            }, 1000);
+        }
+    }
+
+    // Enhanced error handling for accessibility
+    handleAccessibilityError(error, context = '') {
+        console.error('Accessibility error:', error);
+        
+        const errorMessage = `Error de accesibilidad${context ? ' en ' + context : ''}: ${error.message}`;
+        this.announceToScreenReader(errorMessage, 'assertive');
+        
+        // Show visual indicator
+        this.showVoiceIndicator(errorMessage, 'error');
+    }
     initializeCityData() {
         return {
             zones: {
