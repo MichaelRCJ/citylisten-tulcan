@@ -1,1 +1,1 @@
-web: npm run build && npm start
+web: python -m http.server 10000
