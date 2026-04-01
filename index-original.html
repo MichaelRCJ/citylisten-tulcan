@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CityListen Tulcán - La Ciudad Inteligente que Escucha</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-city"></i>
+                    <span>CityListen Tulcán</span>
+                </div>
+                <nav class="nav-menu">
+                    <a href="#dashboard" class="nav-link active">Dashboard</a>
+                    <a href="#map" class="nav-link">Mapa</a>
+                    <a href="#reports" class="nav-link">Reportes</a>
+                    <a href="#statistics" class="nav-link">Estadísticas</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section active">
+                <div class="dashboard-header">
+                    <h1>Bienvenido a Tulcán</h1>
+                    <p class="subtitle">La ciudad del clima frío te está escuchando...</p>
+                </div>
+
+                <!-- City Map Container -->
+                <div class="map-container">
+                    <div class="city-map" id="cityMap">
+                        <!-- Dynamic zones for Tulcán -->
+                        <div class="map-zone" data-zone="centro" data-status="alert">
+                            <div class="zone-content">
+                                <h3>Centro Histórico</h3>
+                                <div class="zone-stats">
+                                    <span class="stat">28 reportes</span>
+                                    <span class="status">Alerta</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="map-zone" data-zone="norte" data-status="good">
+                            <div class="zone-content">
+                                <h3>Zona Norte</h3>
+                                <div class="zone-stats">
+                                    <span class="stat">15 reportes</span>
+                                    <span class="status">Óptimo</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="map-zone" data-zone="sur" data-status="good">
+                            <div class="zone-content">
+                                <h3>Zona Sur</h3>
+                                <div class="zone-stats">
+                                    <span class="stat">19 reportes</span>
+                                    <span class="status">Óptimo</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="map-zone" data-zone="este" data-status="critical">
+                            <div class="zone-content">
+                                <h3>Zona Este</h3>
+                                <div class="zone-stats">
+                                    <span class="stat">45 reportes</span>
+                                    <span class="status">Crítico</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="map-zone" data-zone="oeste" data-status="good">
+                            <div class="zone-content">
+                                <h3>Zona Oeste</h3>
+                                <div class="zone-stats">
+                                    <span class="stat">22 reportes</span>
+                                    <span class="status">Óptimo</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>129 Reportes</h3>
+                            <p>Últimas 24 horas</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>1,247</h3>
+                            <p>Ciudadanos activos</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>72%</h3>
+                            <p>Resueltos esta semana</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>4.2 hrs</h3>
+                            <p>Tiempo respuesta</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Map Section -->
+            <section id="map" class="section">
+                <div class="section-header">
+                    <h2>Mapa Interactivo</h2>
+                    <p>Reportes en tiempo real por zona</p>
+                </div>
+                
+                <div class="full-map-container">
+                    <!-- Interactive SVG Map -->
+                    <svg class="tulcan-map" viewBox="0 0 800 600">
+                        <!-- Background -->
+                        <rect width="800" height="600" fill="#f0f9ff"/>
+                        
+                        <!-- Zone Paths -->
+                        <g id="mapZones">
+                            <path class="zone-path centro-zone" data-zone="centro" d="M 250 200 L 550 200 L 550 400 L 250 400 Z"/>
+                            <path class="zone-path norte-zone" data-zone="norte" d="M 200 50 L 600 50 L 600 200 L 200 200 Z"/>
+                            <path class="zone-path sur-zone" data-zone="sur" d="M 250 400 L 550 400 L 550 550 L 250 550 Z"/>
+                            <path class="zone-path este-zone" data-zone="este" d="M 550 200 L 750 200 L 750 400 L 550 400 Z"/>
+                            <path class="zone-path oeste-zone" data-zone="oeste" d="M 50 200 L 250 200 L 250 400 L 50 400 Z"/>
+                        </g>
+                        
+                        <!-- Zone Labels -->
+                        <g id="zoneLabels">
+                            <text x="400" y="300" text-anchor="middle" class="zone-label">Centro</text>
+                            <text x="400" y="125" text-anchor="middle" class="zone-label">Norte</text>
+                            <text x="400" y="475" text-anchor="middle" class="zone-label">Sur</text>
+                            <text x="650" y="300" text-anchor="middle" class="zone-label">Este</text>
+                            <text x="150" y="300" text-anchor="middle" class="zone-label">Oeste</text>
+                        </g>
+                    </svg>
+                    
+                    <!-- Map Legend -->
+                    <div class="map-legend">
+                        <div class="legend-item">
+                            <div class="legend-color good"></div>
+                            <span>Óptimo</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color alert"></div>
+                            <span>Alerta</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color critical"></div>
+                            <span>Crítico</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="section">
+                <div class="section-header">
+                    <h2>Reportar Problema</h2>
+                    <p>Informa sobre incidencias en tu comunidad</p>
+                </div>
+                
+                <div class="report-form">
+                    <div class="form-group">
+                        <label for="category">Categoría</label>
+                        <select id="category">
+                            <option value="">Selecciona una categoría</option>
+                            <option value="security">Seguridad Ciudadana</option>
+                            <option value="transport">Transporte Público</option>
+                            <option value="environment">Medio Ambiente</option>
+                            <option value="health">Salud Pública</option>
+                            <option value="services">Servicios Municipales</option>
+                            <option value="tourism">Turismo</option>
+                            <option value="education">Educación</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="zone">Zona</label>
+                        <select id="zone">
+                            <option value="">Selecciona una zona</option>
+                            <option value="centro">Centro Histórico</option>
+                            <option value="norte">Zona Norte</option>
+                            <option value="sur">Zona Sur</option>
+                            <option value="este">Zona Este</option>
+                            <option value="oeste">Zona Oeste</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Descripción</label>
+                        <textarea id="description" rows="4" placeholder="Describe el problema detalladamente..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="location">Ubicación</label>
+                        <input type="text" id="location" placeholder="Dirección o referencia">
+                    </div>
+                    
+                    <button class="submit-btn">Enviar Reporte</button>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section id="statistics" class="section">
+                <div class="section-header">
+                    <h2>Estadísticas</h2>
+                    <p>Análisis de bienestar ciudadano</p>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Panel de Estadísticas de Tulcán</h3>
+                    <div class="charts-grid">
+                        <!-- Bar Chart -->
+                        <div class="chart-box">
+                            <h4>Reportes por Categoría</h4>
+                            <canvas id="barChart" width="400" height="250"></canvas>
+                        </div>
+                        
+                        <!-- Pie Chart -->
+                        <div class="chart-box">
+                            <h4>Distribución de Problemas</h4>
+                            <canvas id="pieChart" width="400" height="250"></canvas>
+                        </div>
+                        
+                        <!-- Line Chart -->
+                        <div class="chart-box">
+                            <h4>Tendencia Semanal</h4>
+                            <canvas id="lineChart" width="400" height="250"></canvas>
+                        </div>
+                        
+                        <!-- Area Chart -->
+                        <div class="chart-box">
+                            <h4>Actividad Ciudadana</h4>
+                            <canvas id="areaChart" width="400" height="250"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-period="week">Semana</button>
+                        <button class="chart-btn" data-period="month">Mes</button>
+                        <button class="chart-btn" data-period="year">Año</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
