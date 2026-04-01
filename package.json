@@ -1,0 +1,33 @@
+{
+  "name": "citylisten-tulcan",
+  "version": "1.0.0",
+  "description": "CityListen Tulcán - Plataforma de Reporte Ciudadano",
+  "main": "index.jsx",
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.4.0"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "citylisten",
+    "tulcan",
+    "reporte-ciudadano"
+  ],
+  "author": "CityListen Team",
+  "license": "MIT"
+}
