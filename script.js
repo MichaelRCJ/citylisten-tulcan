@@ -1279,8 +1279,15 @@ class CityListenApp {
             return;
         }
         
+        // Check if already running to avoid multiple instances
+        if (this.voiceRecognition && this.isListening) {
+            this.announceToScreenReader('Comandos de voz ya están activos');
+            return;
+        }
+        
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.voiceRecognition = new SpeechRecognition();
+        this.isListening = true;
         
         // Enhanced configuration
         this.voiceRecognition.lang = 'es-ES';
@@ -1296,8 +1303,8 @@ class CityListenApp {
             
             console.log('Voice command:', command, 'Confidence:', confidence);
             
-            // Only process if confidence is good enough
-            if (confidence > 0.7) {
+            // Lower confidence threshold for better responsiveness
+            if (confidence > 0.5) {
                 this.processVoiceCommand(command);
                 this.showVoiceIndicator(`"${command}"`, 'success');
             } else {
@@ -1316,12 +1323,18 @@ class CityListenApp {
                     break;
                 case 'audio-capture':
                     errorMessage = 'No se pudo acceder al micrófono';
+                    this.isListening = false;
                     break;
                 case 'not-allowed':
-                    errorMessage = 'Permiso de micrófono denegado';
+                    errorMessage = 'Permiso de micrófono denegado. Habilita el micrófono en tu navegador.';
+                    this.isListening = false;
                     break;
                 case 'network':
                     errorMessage = 'Error de conexión';
+                    break;
+                case 'service-not-allowed':
+                    errorMessage = 'Servicio de voz no permitido';
+                    this.isListening = false;
                     break;
             }
             
@@ -1329,16 +1342,17 @@ class CityListenApp {
             this.announceToScreenReader(errorMessage);
         };
         
-        // Enhanced restart logic
+        // Enhanced restart logic - only restart if still enabled and not manually stopped
         this.voiceRecognition.onend = () => {
-            if (this.accessibilitySettings.voiceCommands) {
-                this.showVoiceIndicator('Escuchando...', 'info');
+            if (this.accessibilitySettings.voiceCommands && this.isListening) {
+                this.showVoiceIndicator('Reiniciando reconocimiento...', 'info');
                 setTimeout(() => {
-                    if (this.voiceRecognition && this.accessibilitySettings.voiceCommands) {
+                    if (this.voiceRecognition && this.accessibilitySettings.voiceCommands && this.isListening) {
                         try {
                             this.voiceRecognition.start();
                         } catch (error) {
                             console.error('Error restarting voice recognition:', error);
+                            this.isListening = false;
                         }
                     }
                 }, 1000);
@@ -1357,11 +1371,13 @@ class CityListenApp {
         } catch (error) {
             console.error('Error starting voice recognition:', error);
             this.showVoiceIndicator('Error al iniciar voz', 'error');
+            this.isListening = false;
         }
     }
 
     stopVoiceCommands() {
         if (this.voiceRecognition) {
+            this.isListening = false;
             this.voiceRecognition.stop();
             this.voiceRecognition = null;
             this.showVoiceIndicator('Comandos de voz desactivados', 'info');
@@ -1478,6 +1494,73 @@ class CityListenApp {
             'cancelar|salir|cerrar': () => {
                 this.closeAllModals();
                 this.announceToScreenReader('Operación cancelada');
+            },
+            // Category selection commands
+            'categoría seguridad|seguridad|seguridad ciudadana': () => {
+                this.selectFormOption('category', 'security');
+                this.announceToScreenReader('Categoría seguridad seleccionada');
+            },
+            'categoría transporte|transporte|transporte público': () => {
+                this.selectFormOption('category', 'transport');
+                this.announceToScreenReader('Categoría transporte seleccionada');
+            },
+            'categoría ambiente|ambiente|medio ambiente': () => {
+                this.selectFormOption('category', 'environment');
+                this.announceToScreenReader('Categoría ambiente seleccionada');
+            },
+            'categoría salud|salud|salud pública': () => {
+                this.selectFormOption('category', 'health');
+                this.announceToScreenReader('Categoría salud seleccionada');
+            },
+            'categoría servicios|servicios|servicios municipales': () => {
+                this.selectFormOption('category', 'services');
+                this.announceToScreenReader('Categoría servicios seleccionada');
+            },
+            'categoría turismo|turismo': () => {
+                this.selectFormOption('category', 'tourism');
+                this.announceToScreenReader('Categoría turismo seleccionada');
+            },
+            'categoría educación|educación': () => {
+                this.selectFormOption('category', 'education');
+                this.announceToScreenReader('Categoría educación seleccionada');
+            },
+            // Zone selection commands
+            'zona centro|centro|zona centro histórico': () => {
+                this.selectFormOption('zone', 'centro');
+                this.announceToScreenReader('Zona centro seleccionada');
+            },
+            'zona norte|norte': () => {
+                this.selectFormOption('zone', 'norte');
+                this.announceToScreenReader('Zona norte seleccionada');
+            },
+            'zona sur|sur': () => {
+                this.selectFormOption('zone', 'sur');
+                this.announceToScreenReader('Zona sur seleccionada');
+            },
+            'zona este|este': () => {
+                this.selectFormOption('zone', 'este');
+                this.announceToScreenReader('Zona este seleccionada');
+            },
+            'zona oeste|oeste': () => {
+                this.selectFormOption('zone', 'oeste');
+                this.announceToScreenReader('Zona oeste seleccionada');
+            },
+            // Navigation commands for scrolling
+            'bajar|abajo|scroll abajo|ir abajo': () => {
+                this.scrollPage('down');
+                this.announceToScreenReader('Desplazándose hacia abajo');
+            },
+            'subir|arriba|scroll arriba|ir arriba': () => {
+                this.scrollPage('up');
+                this.announceToScreenReader('Desplazándose hacia arriba');
+            },
+            'ir al principio|principio|inicio de página': () => {
+                this.scrollToTop();
+                this.announceToScreenReader('Desplazándose al principio de la página');
+            },
+            'ir al final|final|fin de página': () => {
+                this.scrollToBottom();
+                this.announceToScreenReader('Desplazándose al final de la página');
             }
         };
         
@@ -1649,14 +1732,55 @@ class CityListenApp {
         }
     }
 
+    selectFormOption(fieldId, value) {
+        // Select option in form dropdown
+        const selectElement = document.getElementById(fieldId);
+        if (selectElement) {
+            selectElement.value = value;
+            // Trigger change event
+            const event = new Event('change', { bubbles: true });
+            selectElement.dispatchEvent(event);
+        }
+    }
+
+    scrollPage(direction) {
+        const scrollAmount = 300; // pixels to scroll
+        if (direction === 'down') {
+            window.scrollBy({
+                top: scrollAmount,
+                behavior: 'smooth'
+            });
+        } else if (direction === 'up') {
+            window.scrollBy({
+                top: -scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    scrollToTop() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+
+    scrollToBottom() {
+        window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+
     announceVoiceCommandsHelp() {
         const helpCategories = {
             navegación: 'Di "inicio", "mapa", "reportar", "estadísticas" o "perfil" para navegar.',
             acciones: 'Di "accesibilidad" para opciones, "notificaciones" para alertas, o "ayuda" para esta ayuda.',
             voz: 'Di "detener voz" para desactivar, o "activar voz" para reactivar comandos.',
-            formulario: 'En reportes: di "enviar" para enviar, "limpiar" para borrar, o "cancelar" para salir.',
+            formulario: 'En reportes: di "enviar" para enviar, "limpiar" para borrar, o "cancelar" para salir. Para categorías: "categoría seguridad", "categoría transporte", "categoría ambiente", "categoría salud", "categoría servicios", "categoría turismo", "categoría educación". Para zonas: "zona centro", "zona norte", "zona sur", "zona este", "zona oeste".',
             estadísticas: 'Di "hoy", "semana" o "mes" para cambiar el período de las gráficas.',
             mapa: 'Di "zona norte", "zona sur", "zona este", "zona oeste" o "centro histórico" para seleccionar zonas.',
+            navegación_pagina: 'Di "bajar", "subir", "ir al principio" o "ir al final" para navegar por la página.',
             accesibilidad: 'Di "alto contraste", "texto grande", "lector de pantalla" o "reducir movimiento".'
         };
         
