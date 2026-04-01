@@ -22,7 +22,8 @@ export default defineConfig({
   },
   preview: {
     host: true,
-    port: 3000
+    port: 3000,
+    allowedHosts: ['citylisten-tulcan.onrender.com', 'localhost', '127.0.0.1']
   },
   // Configuración para producción
   define: {
