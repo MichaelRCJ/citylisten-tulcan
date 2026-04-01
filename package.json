@@ -4,10 +4,10 @@
   "description": "CityListen Tulcán - Plataforma de Reporte Ciudadano",
   "main": "index.jsx",
   "scripts": {
-    "start": "npm run dev",
+    "start": "vite preview --host",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview --host"
   },
   "dependencies": {
     "react": "^18.2.0",

@@ -23,5 +23,9 @@ export default defineConfig({
   preview: {
     host: true,
     port: 3000
+  },
+  // Configuración para producción
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production')
   }
 })
